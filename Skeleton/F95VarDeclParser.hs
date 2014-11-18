@@ -40,6 +40,7 @@ f95_var_decl_parser =
     whiteSpace
     optional (char ',')
     whiteSpace
+    string "::"
     varList <- arglist_parser
     whiteSpace
     optional (char ',')
@@ -75,44 +76,106 @@ dim_parser :: Parser [Range]
 dim_parser = 
   do
     caseInsensitiveString "dimension("
-    let x = sepBy range_parser (char ',')
-    return [dummyRange]
-    --return x
+    x <- sepBy range_parser (char ',')
+    char ')'
+    return x
+    ----return x
+    --return [dummyRange]
 
 range_parser :: Parser Range
-range_parser = 
-  do
-    whiteSpace
-    x <- try(range_expr)<|>try(single_var_range)<|>try(single_const_range)<|>single_expr_range
-    return  x
+range_parser = try(range_expr)<|>try(single_expr_range)<|>try(single_var_range)<|>single_const_range
+    
 
 single_var_range :: Parser Range    
 single_var_range =
   do
-    
+    whiteSpace
+    let start = Const 1
     end <- var_expr
-    --return (MkRange start end)
-    return dummyRange
+    return (MkRange start end)
+
 
 single_const_range :: Parser Range
-single_const_range = 
-  --return ( MkRange $ Expr const_expr)
-  return dummyRange
+single_const_range =
+  do 
+    whiteSpace
+    let start = Const 1
+    end <- const_expr
+    return (MkRange start end)
+
+
 single_expr_range :: Parser Range
-single_expr_range = return dummyRange
+single_expr_range =  
+  do
+    whiteSpace
+    let start = Const 1
+    end <- expr_parser
+    
+    return (MkRange start end)
+
 
 range_expr :: Parser Range    
-range_expr =  return dummyRange
+range_expr =  
+  do
+    whiteSpace
+    start <- expr_parser
+    char ':'
+    end <- expr_parser
+
+    return (MkRange start end)
 
 intent_parser :: Parser Intent    
-intent_parser = return dummyIntent
-   
+intent_parser =
+  do
+    whiteSpace
+    optional( caseInsensitiveString "intent(")
+    x <- try(many letter)
+    let y = map toLower x
+    let inten = case(y) of  "inout" -> InOut
+                            "in"-> In
+                            "out"-> Out
+                            [] -> InOut
+    whiteSpace
+    optional (char ')')
+    return inten
+
+--names of the variables 
 arglist_parser :: Parser [VarName]    
-arglist_parser = return [dummyVarName]
+arglist_parser = 
+  do
+    x <- sepBy arglist_var (char ',')
+    return x
+
+
+arglist_var :: Parser String
+arglist_var = 
+  do
+    whiteSpace
+    x <- letter
+    y <- many (alphaNum <|> char '_')
+    let xy = (x:y)
+
+    return (xy)
 
 ocl_argmode_parser :: Parser OclArgMode    
-ocl_argmode_parser = return dummyArgMode
+ocl_argmode_parser = ocl_argmode_checker 
+  --return dummyArgMode
 
+ocl_argmode_checker :: Parser OclArgMode
+ocl_argmode_checker = 
+  do
+    whiteSpace
+    optional(caseInsensitiveString "!$ACC argMode")
+    --whiteSpace
+    --optional(caseInsensitiveString "argMode")
+    whiteSpace
+    x <- try(many letter)
+    let y = map toLower x
+    let mode = case(y) of "readwrite" -> ReadWrite
+                          "read" -> Read
+                          "write" -> Write
+                          [] -> ReadWrite
+    return mode 
 -- Parser for a term in expression as used e.g. in the dimension() attribute. 
 -- This is not a dummy
 term :: Parser Expr
@@ -125,19 +188,34 @@ expr_parser = buildExpressionParser optable term <?> "expression"
 
 -- parser for a constant, e.g. 42
 --doesnt throw error on no digit due to logic issue
-const_expr :: Parser Expr
-const_expr =
-  do
-    const <- many alphaNum
-    let x = case(const) of [] -> 1
-                           digit -> read(const) 
+const_expr = try(negative_const_expr) <|> try(positive_const_expr) <?> "Const expr"
 
-    return  $ Const x
+positive_const_expr =
+  do
+  --string "="
+    whiteSpace
+    xs <- many1(digit)
+    let num_x = read (xs) :: Integer
+    return (Const num_x)
+
+negative_const_expr =
+  do
+    whiteSpace
+    x <- char '-'
+    xs <- many1(digit)
+    let num_x = read (x:xs) :: Integer
+    return (Const num_x)
 
 -- parser for a variable e.g. v
 var_expr :: Parser Expr
-var_expr = return dummyVarExpr
+var_expr = 
+  do
+    whiteSpace
+    x <- letter
+    y <- many (alphaNum <|> char '_')
+    let xy = (x:y)
 
+    return (Var xy)
 -- I suggest you don't touch the code below. It is not dummy code.
 optable =
     let
