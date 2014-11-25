@@ -28,6 +28,7 @@ caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
 f95_var_decl_parser :: Parser VarDecl
 f95_var_decl_parser = 
   do
+    whiteSpace
     varType <- type_parser
     whiteSpace
     optional (char ',')
@@ -46,7 +47,7 @@ f95_var_decl_parser =
     optional (char ',')
     whiteSpace
     argMode <- ocl_argmode_parser
-    return (MkVarDecl varType dimension intent varList argMode True)
+    return (MkVarDecl varType dimension intent varList argMode True False [] )
           
 type_parser :: Parser VarType
 type_parser = 

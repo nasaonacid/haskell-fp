@@ -28,7 +28,7 @@ dummyVarType = MkVarType F95Integer 0
 dummyRange =  MkRange (Const 0) (Const 0)
 dummyIntent = InOut
 dummyArgMode = ReadWrite
-dummyVarDecl = MkVarDecl dummyVarType [] dummyIntent [] dummyArgMode True
+dummyVarDecl = MkVarDecl dummyVarType [] dummyIntent [] dummyArgMode True False []
 
 dummyConstExpr = Const 0
 dummyVarExpr = Var "DUMMY"

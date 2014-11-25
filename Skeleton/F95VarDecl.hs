@@ -9,16 +9,19 @@ data VarDecl = MkVarDecl {
 	vd_vartype :: VarType
 	,vd_dimension :: [Range]	
 	,vd_intent :: Intent
-	,vd_varlist :: [VarName]
+	,vd_varlist :: [VarName] 
 	,vd_argmode :: OclArgMode
-    ,vd_is_arg :: Bool
+    ,vd_is_arg :: Bool -- This variable is a subroutine argument
+    ,vd_has_const_ranges :: Bool -- This variable has constant ranges
+    ,vd_shape :: [Int] 
+    --The shape of the variable if vd_has_const_ranges is True
 } deriving (Eq, Ord, Show)
 
-data Intent = In | Out | InOut  deriving (Eq, Ord, Show)
+data Intent = In | Out | InOut  deriving (Eq, Ord, Show) -- default is InOut
 
 data VarType = MkVarType {
 	at_numtype :: NumType,
-	at_wordsz :: Integer
+	at_wordsz :: Integer -- default is 4
 }  deriving (Eq, Ord, Show)
 
 data NumType =  F95Integer | F95Real  deriving (Eq, Ord, Show)

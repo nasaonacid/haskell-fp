@@ -41,7 +41,7 @@ Sequence of actions:
 -}
 
 --templ_src_name=  "module_LES_ocl_TEMPL.f95"
-templ_src_name=  "../Fortran95-sources/module_LES_ocl_TEMPL.f95"
+templ_src_name=  "module_LES_ocl_TEMPL.f95"
 gen_src_name = "module_LES_ocl.f95"
 
       
@@ -52,11 +52,37 @@ gen_src_name = "module_LES_ocl.f95"
 -- create a table with as key the variable name and as value the parsed declaration
 -- also returns a list of the argument variable names and the constant argument variable names
 parse_arg_decls :: [String] -> [String] -> (ArgTable,[String],[String])
-parse_arg_decls arg_lines const_arg_lines = (H.empty,[],[])
+parse_arg_decls arg_lines const_arg_lines = 
+    do
+
+        let args = map (run_parser f95_var_decl_parser) arg_lines
+        let const_args = map (run_parser f95_var_decl_parser) const_arg_lines
+        let superArgTable = foldr (add_var_table) H.empty args
+        let superConstTable = foldr (add_var_table) H.empty const_args
+
+        (H.union superArgTable superConstTable , H.keys superArgTable, H.keys superConstTable)
+
+add_var_table :: VarDecl -> ArgTable -> ArgTable
+add_var_table vDec vTab =
+    do
+        let vList = vd_varlist vDec
+        foldr (insert_rearrange vDec) vTab vList
+
+insert_rearrange :: VarDecl -> String -> ArgTable -> ArgTable
+insert_rearrange var_decl var_name var_table = H.insert var_name var_decl var_table
 
 -- Given the parameter declarations, create a table with as key the parameter name and as value the parsed declaration	
+--type VarTable = H.Map String Expr
 parse_par_decls :: [String] -> VarTable    
-parse_par_decls par_lines = H.empty
+parse_par_decls par_lines = 
+    do 
+        let parList = map(run_parser f95_par_decl_parser) par_lines
+        foldr(add_par_table) H.empty parList
+
+
+add_par_table :: ParDecl -> VarTable -> VarTable
+add_par_table pDec vTable = H.insert (pd_parname pDec) (pd_parval pDec) vTable
+
 
 -- This takes a range expression and returns a tuple with the variable name and the computed size
 eval_range_expr :: ArgTable -> VarTable -> String -> (String, [Integer])
@@ -75,7 +101,7 @@ main = do
 
         ]
     x <- read_F95_src templ_src_name
-    let y = extract_OpenACC_regions_from_F95_src x 
+    let (arg_decls, const_decls, par_decls)  = extract_OpenACC_regions_from_F95_src x 
 
     mapM_ putStrLn x
     write_F95_src gen_src_name ["I \n","love \n","you"]
