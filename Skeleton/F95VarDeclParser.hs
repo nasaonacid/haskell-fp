@@ -28,6 +28,9 @@ caseInsensitiveString s = try (mapM caseInsensitiveChar s) <?> "\"" ++ s ++ "\""
 f95_var_decl_parser :: Parser VarDecl
 f95_var_decl_parser = 
   do
+    --y <- many $noneOf ""
+    --error y
+    --error run_parser_print string
     whiteSpace
     varType <- type_parser
     whiteSpace
@@ -38,10 +41,11 @@ f95_var_decl_parser =
     optional (char ',')
     whiteSpace
     intent <- intent_parser
-    whiteSpace
-    optional (char ',')
+    --whiteSpace
+    --optional (char ',')
     whiteSpace
     string "::"
+
     varList <- arglist_parser
     whiteSpace
     optional (char ',')
@@ -55,6 +59,7 @@ type_parser =
     varT <- many letter
     let nType = case(map toLower varT) of "integer" -> F95Integer 
                                           "real" -> F95Real
+    whiteSpace
     word <- try(kind_parser)
 
         
@@ -62,15 +67,21 @@ type_parser =
 
 kind_parser :: Parser Integer
 kind_parser = do
+  --y<- many $ noneOf ""
+  --error y
   optional (char '(')
   whiteSpace
-  optional (caseInsensitiveString "kind=")
+  optional (caseInsensitiveString "kind")
+  whiteSpace
+  optional (char '=')
+  whiteSpace
   temp <- many digit
   let x = case (temp) of [] -> 4
                          otherwise -> read(temp)
 
   whiteSpace
   optional ( char ')' )
+  
   return x
       
 dim_parser :: Parser [Range]
@@ -144,6 +155,9 @@ intent_parser =
 arglist_parser :: Parser [VarName]    
 arglist_parser = 
   do
+    --y<- many $ noneOf ""
+    --error y
+    optional(string "::")
     x <- sepBy arglist_var (char ',')
     return x
 
@@ -151,6 +165,7 @@ arglist_parser =
 arglist_var :: Parser String
 arglist_var = 
   do
+
     whiteSpace
     x <- letter
     y <- many (alphaNum <|> char '_')
@@ -176,6 +191,7 @@ ocl_argmode_checker =
                           "read" -> Read
                           "write" -> Write
                           [] -> ReadWrite
+
     return mode 
 -- Parser for a term in expression as used e.g. in the dimension() attribute. 
 -- This is not a dummy

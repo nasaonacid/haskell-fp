@@ -27,7 +27,7 @@ extract_constants :: [String] -> [String]
 extract_constants [] = []
 extract_constants (x:xs)
 	| x =~ "![$]acc[ ]*constarguments[ ]*" :: Bool = process_constants xs
-	| otherwise = extract_arguments xs
+	| otherwise = extract_constants xs
 
 process_constants :: [String] -> [String]
 process_constants [] = error "ACC ConstArguments not closed"

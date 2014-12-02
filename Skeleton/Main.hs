@@ -86,24 +86,61 @@ add_par_table pDec vTable = H.insert (pd_parname pDec) (pd_parval pDec) vTable
 
 -- This takes a range expression and returns a tuple with the variable name and the computed size
 eval_range_expr :: ArgTable -> VarTable -> String -> (String, [Integer])
-eval_range_expr ocl_args par_table var_name = ("DUMMY",[])
-       
+eval_range_expr ocl_args par_table var_name = 
+    do
+        let range_expr  = case H.lookup var_name ocl_args of
+                            Just a -> a
+                            Nothing -> error "No such range expression exists"
+        let range_list = vd_dimension range_expr 
+        let results = foldr(single_range_eval par_table) [] range_list
+        (var_name, results)
+
+single_range_eval :: VarTable -> Range -> [Integer] -> [Integer]
+single_range_eval vTab range list = 
+    do 
+        let start = r_start range
+        let end = r_stop range
+        let (start_resolved, table_a) = eval start vTab
+        let (end_resolved, table_b) = eval end vTab
+        [1 + end_resolved - start_resolved] ++ list
+
+
+
+
 -- ###############################
 main :: IO ()
 main = do 
     putStr $ unlines [
-        "-- read source template from file"
-        ,"-- extract OpenACC regions"
-        ,"-- parse declarations"
+        "-- read source template from file" --Done
+        ,"-- extract OpenACC regions" --Done
+        ,"-- parse declarations" --Done
         ,"-- compute sizes for OpenCL arguments (this is hard, leave for last)"
         ,"-- generate the target source code" 
-        ,"-- write generated source to file"
+        ,"-- write generated source to file" -- Done
 
         ]
     x <- read_F95_src templ_src_name
     let (arg_decls, const_decls, par_decls)  = extract_OpenACC_regions_from_F95_src x 
+    let (var_table, arg_names, const_names ) = parse_arg_decls arg_decls const_decls
+    let par_table = parse_par_decls par_decls
 
-    mapM_ putStrLn x
-    write_F95_src gen_src_name ["I \n","love \n","you"]
+    let test_parameters = H.keys par_table
+
+    let test_expr_1 = case H.lookup (test_parameters!!0) par_table of 
+                        Just a -> a 
+                        Nothing -> Const 0
+    let test_expr_2 = case H.lookup (test_parameters!!1) par_table of 
+                        Just a -> a 
+                        Nothing -> Const 0
+    let test_expr_3 = case H.lookup (test_parameters!!2) par_table of 
+                        Just a -> a 
+                        Nothing -> Const 0
+
+    let test_vars = H.keys var_table
+    putStr "\n"
+    putStr $unlines par_decls
+    --putStr $ show  const_decls
+    --mapM_ putStrLn x
+    write_F95_src gen_src_name [""]
 
     
