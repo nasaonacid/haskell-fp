@@ -57,10 +57,16 @@ parse_arg_decls arg_lines const_arg_lines =
 
         let args = map (run_parser f95_var_decl_parser) arg_lines
         let const_args = map (run_parser f95_var_decl_parser) const_arg_lines
+
+        --changes here
+        let order_arg_list = foldl (\list var_decl -> list ++ vd_varlist var_decl) [] args
+        let order_const_list = foldl (\list var_decl -> list ++ vd_varlist var_decl) [] const_args
+        --end here
         let superArgTable = foldr (add_var_table) H.empty args
         let superConstTable = foldr (add_var_table) H.empty const_args
 
-        (H.union superArgTable superConstTable , H.keys superArgTable, H.keys superConstTable)
+
+        (H.union superArgTable superConstTable , order_arg_list, order_const_list)
 
 add_var_table :: VarDecl -> ArgTable -> ArgTable
 add_var_table vDec vTab =
@@ -105,7 +111,16 @@ single_range_eval vTab range list =
         [1 + end_resolved - start_resolved] ++ list
 
 
-
+update_table_sizes :: VarTable -> String -> ArgTable -> ArgTable
+update_table_sizes ptab vname oargs =
+    do
+        let vdec = case H.lookup vname oargs of 
+                        Just a -> a
+                        Nothing -> dummyVarDecl
+        let (name, shape) = eval_range_expr oargs ptab vname
+        let shape_int = map (fromIntegral) shape
+        let new_vdec = MkVarDecl (vd_vartype vdec) (vd_dimension vdec) (vd_intent vdec) (vd_varlist vdec) (vd_argmode vdec) True (vd_has_const_ranges vdec) shape_int
+        H.insert vname new_vdec (H.delete vname oargs)
 
 -- ###############################
 main :: IO ()
@@ -124,23 +139,20 @@ main = do
     let (var_table, arg_names, const_names ) = parse_arg_decls arg_decls const_decls
     let par_table = parse_par_decls par_decls
 
-    let test_parameters = H.keys par_table
+    let vtabKeys = H.keys var_table
+    let updatedVtab = foldr (update_table_sizes par_table) var_table vtabKeys
+    let codeGen = gen_OpenCL_API_calls updatedVtab arg_names const_names x templ_src_name
+    write_F95_src gen_src_name codeGen
 
-    let test_expr_1 = case H.lookup (test_parameters!!0) par_table of 
-                        Just a -> a 
-                        Nothing -> Const 0
-    let test_expr_2 = case H.lookup (test_parameters!!1) par_table of 
-                        Just a -> a 
-                        Nothing -> Const 0
-    let test_expr_3 = case H.lookup (test_parameters!!2) par_table of 
-                        Just a -> a 
-                        Nothing -> Const 0
+    putStr $ unlines [
+        "-- read source template from file"
+        ,"-- extract OpenACC regions"
+        ,"-- parse declarations"
+        ,"-- compute sizes for OpenCL arguments (this is hard, leave for last)"
+        ,"-- generate the target source code"
+        ,"-- write generated source to file"
+        ]
 
-    let test_vars = H.keys var_table
-    putStr "\n"
-    putStr $unlines par_decls
-    --putStr $ show  const_decls
-    --mapM_ putStrLn x
-    write_F95_src gen_src_name [""]
+
 
     
